@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🦆 El Pato — Juego Multijugador</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#0f1923;color:#e5e7eb;min-height:100vh}
+.screen{display:none;flex-direction:column;align-items:center;padding:16px;width:100%;min-height:100vh}
+.screen.active{display:flex}
+.logo{font-size:56px;margin-bottom:4px;animation:bob 2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+h1.title{font-size:40px;font-weight:900;color:#FBBF24;text-shadow:2px 2px 0 #92400e;margin-bottom:2px}
+.subtitle{font-size:13px;color:#6b7280;margin-bottom:22px}
+.card{background:#1c2a3a;border-radius:14px;padding:20px;width:100%;max-width:400px;margin:8px 0;border:1px solid #2d3f52}
+.card h2{font-size:15px;margin-bottom:13px;color:#FBBF24;font-weight:700}
+input[type=text]{width:100%;padding:11px 14px;border-radius:9px;border:1.5px solid #2d3f52;background:#0f1923;color:#e5e7eb;font-size:15px;margin-bottom:10px;outline:none;transition:border .2s}
+input[type=text]:focus{border-color:#FBBF24}
+.btn{padding:11px 20px;border-radius:9px;border:none;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;width:100%;margin-bottom:7px}
+.btn-gold{background:#FBBF24;color:#0f1923}
+.btn-gold:hover{background:#f59e0b;transform:scale(1.02)}
+.btn-blue{background:#1e3a5f;color:#e5e7eb}
+.btn-blue:hover{background:#1d4ed8}
+.btn:active{transform:scale(0.97)!important}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+.divider{text-align:center;color:#374151;margin:6px 0;font-size:12px}
+.err{color:#f87171;font-size:12px;text-align:center;margin-top:5px;min-height:16px}
+.ok{color:#34d399}
+.room-code{font-size:34px;font-weight:900;color:#FBBF24;letter-spacing:8px;text-align:center;margin:10px 0;font-family:monospace}
+.p-item{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#0f1923;border-radius:9px;margin-bottom:7px;border:1px solid #2d3f52}
+.p-av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.host-badge{font-size:10px;background:#FBBF24;color:#0f1923;padding:2px 7px;border-radius:20px;font-weight:700}
+/* GAME */
+#game-screen{padding:0;align-items:stretch}
+#game-header{display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:#1c2a3a;border-bottom:1px solid #2d3f52;font-size:13px;flex-shrink:0}
+.gtitle{font-size:18px;font-weight:900;color:#FBBF24}
+#game-wrap{display:flex;gap:14px;padding:12px;flex:1;flex-wrap:wrap}
+#board-side{flex:1;min-width:260px}
+#info-side{width:210px;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
+#boardCanvas{width:100%;border-radius:12px;display:block}
+.p-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;background:#0f1923;border:1px solid #2d3f52;transition:border .2s,background .2s}
+.p-row.active{border-color:#FBBF24;background:#1a2a0a}
+.p-info strong{display:block;font-size:12px;line-height:1.3}
+.p-info span{font-size:10px;color:#9ca3af}
+.p-pos{font-size:11px;font-weight:700;color:#FBBF24;white-space:nowrap}
+#dice-area{background:#0f1923;border-radius:11px;padding:14px;border:1px solid #2d3f52;text-align:center}
+#dice-display{font-size:50px;margin:6px 0;min-height:56px;line-height:1}
+#btn-roll{background:#FBBF24;color:#0f1923;font-weight:900;font-size:17px;padding:13px;border-radius:10px;border:none;cursor:pointer;width:100%;transition:all .15s;margin-top:6px}
+#btn-roll:hover:not(:disabled){background:#f59e0b;transform:scale(1.02)}
+#btn-roll:disabled{opacity:.4;cursor:not-allowed;transform:none}
+#msg-box{padding:11px;background:#0f1923;border-radius:9px;font-size:12px;color:#FBBF24;border:1px solid #2d3f52;min-height:44px;text-align:center;line-height:1.5}
+#log-area{max-height:80px;overflow-y:auto;font-size:10px;color:#4b5563;padding:5px;background:#080f16;border-radius:6px;line-height:1.6}
+#winner-screen{text-align:center;justify-content:center}
+.trophy{font-size:80px;margin-bottom:12px;animation:bob 1.5s ease-in-out infinite}
+.winner-name{font-size:32px;font-weight:900;color:#FBBF24;margin:8px 0}
+.legend{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px;max-width:400px}
+.leg{font-size:10px;color:#6b7280;background:#1c2a3a;padding:3px 8px;border-radius:20px;border:1px solid #2d3f52}
+#status{font-size:10px;padding:3px 10px;border-radius:20px;background:#1c2a3a;border:1px solid #2d3f52;color:#6b7280;margin-top:6px}
+@media(max-width:600px){
+  #game-wrap{flex-direction:column}
+  #info-side{width:100%}
+  h1.title{font-size:30px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- LOBBY -->
+<div class="screen active" id="lobby-screen">
+  <div class="logo">🦆</div>
+  <h1 class="title">EL PATO</h1>
+  <p class="subtitle">Multijugador online · hasta 6 jugadores</p>
+  <div class="card">
+    <h2>Tu nombre</h2>
+    <input id="pname" type="text" placeholder="¿Cómo te llamas?" maxlength="16" autocomplete="off"/>
+    <button class="btn btn-gold" id="btn-create" onclick="createRoom()">🎲 Crear partida nueva</button>
+    <div class="divider">— o únete con un código —</div>
+    <input id="jcode" type="text" placeholder="Código de sala (4 letras)" maxlength="4"
+      style="text-transform:uppercase;letter-spacing:6px;text-align:center;font-family:monospace;font-size:20px" autocomplete="off"/>
+    <button class="btn btn-blue" id="btn-join" onclick="joinRoom()">🔗 Unirse a partida</button>
+    <div class="err" id="lerr"></div>
+  </div>
+  <div class="legend">
+    <span class="leg">🦆 Pato = avanza de nuevo</span>
+    <span class="leg">🌉 Puente #6 → #12</span>
+    <span class="leg">🍺 Posada #19 = 1 turno</span>
+    <span class="leg">🪣 Pozo #31 = 2 turnos</span>
+    <span class="leg">🌀 Laberinto #42 → #30</span>
+    <span class="leg">⛓ Cárcel #52 = 2 turnos</span>
+    <span class="leg">💀 Muerte #58 → inicio</span>
+    <span class="leg">🏆 Meta = ¡casilla 63!</span>
+  </div>
+</div>
+
+<!-- WAITING -->
+<div class="screen" id="waiting-screen">
+  <div style="font-size:36px;margin:12px 0 4px">🦆</div>
+  <h1 class="title" style="font-size:24px">Sala de espera</h1>
+  <div class="card" style="text-align:center">
+    <h2>Código de sala</h2>
+    <div class="room-code" id="rc-disp">----</div>
+    <p style="font-size:12px;color:#6b7280">Comparte este código con tus amigos.<br>Deben abrir esta misma página y escribirlo.</p>
+  </div>
+  <div class="card">
+    <h2>Jugadores <span id="pc" style="color:#6b7280;font-weight:400;font-size:12px">(0/6)</span></h2>
+    <div id="wp-list"></div>
+    <div class="err" id="werr"></div>
+    <button class="btn btn-gold" id="btn-start" onclick="startGame()" style="display:none;margin-top:10px">▶ Iniciar partida</button>
+    <div id="wmsg" style="font-size:11px;color:#6b7280;text-align:center;margin-top:8px"></div>
+  </div>
+  <div id="status">⏳ Conectando...</div>
+</div>
+
+<!-- GAME -->
+<div class="screen" id="game-screen">
+  <div id="game-header">
+    <span class="gtitle">🦆 El Pato</span>
+    <span id="turn-ind" style="color:#9ca3af;font-size:12px">...</span>
+    <span id="conn-status" style="font-size:10px;color:#34d399">● online</span>
+  </div>
+  <div id="game-wrap">
+    <div id="board-side"><canvas id="boardCanvas"></canvas></div>
+    <div id="info-side">
+      <div id="pturn-list"></div>
+      <div id="dice-area">
+        <div style="font-size:10px;color:#6b7280">Dado</div>
+        <div id="dice-display">🎲</div>
+        <button id="btn-roll" onclick="rollDice()">TIRAR DADO</button>
+      </div>
+      <div id="msg-box">Espera tu turno...</div>
+      <div id="log-area"></div>
+    </div>
+  </div>
+</div>
+
+<!-- WINNER -->
+<div class="screen" id="winner-screen">
+  <div class="trophy">🏆</div>
+  <div class="winner-name" id="wname"></div>
+  <p style="color:#6b7280;margin-bottom:20px">¡Ha ganado El Pato!</p>
+  <button class="btn btn-gold" style="max-width:280px" onclick="location.reload()">🦆 Jugar de nuevo</button>
+</div>
+
+</div><!-- #app -->
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, set, get, update, onValue, off, remove }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+// ══════════════════════════════════════════════
+//  🔥 CONFIGURACIÓN FIREBASE
+//  Sustituye estos valores por los de tu proyecto
+// ══════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyBjSmFIPdpjFrssL05AB3GfZqtEuScFQZ8",
+  authDomain: "el-pato-game.firebaseapp.com",
+  databaseURL: "https://el-pato-game-default-rtdb.europe-west1.firebasedatabase.app",
+
+  projectId: "el-pato-game",
+  storageBucket: "el-pato-game.firebasestorage.app",
+  messagingSenderId: "339347560679",
+  appId: "1:339347560679:web:2f16c940e179aa534cea42",
+  measurementId: "G-V0YY4R9S7Y"
+};
+// ══════════════════════════════════════════════
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+// ════════ CONSTANTES ════════
+const EMOJIS = ['🟡','🔵','🔴','🟢','🟠','🟣'];
+const DFACES = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+const GEESE  = [5,9,14,18,23,27,32,36,41,45,50,54,59];
+const BRIDGE=6, INN=19, WELL=31, MAZE=42, PRISON=52, DEATH=58, END=63;
+
+// ════════ ESTADO LOCAL ════════
+let myId, myName, roomId, isHost, unsubscribe;
+let rolling=false, boardReady=false, skipScheduled=false;
+let canvas, ctx, cells=[];
+
+// ════════ HELPERS ════════
+function genCode(){
+  const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s='';for(let i=0;i<4;i++)s+=c[Math.floor(Math.random()*c.length)];return s;
+}
+function genId(){
+  const c='abcdefghijklmnopqrstuvwxyz0123456789';
+  let s='';for(let i=0;i<10;i++)s+=c[Math.floor(Math.random()*c.length)];return s;
+}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function esc(s){return String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function avatarBg(e){
+  return{'🟡':'#6b5200','🔵':'#0e2a50','🔴':'#5a0011','🟢':'#0a4500','🟠':'#5a2a00','🟣':'#3a0060'}[e]||'#333';
+}
+function setErr(id,m,ok=false){
+  const el=document.getElementById(id);
+  if(el){el.textContent=m;el.style.color=ok?'#34d399':'#f87171';}
+}
+function screen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function setDisabled(id,v){const el=document.getElementById(id);if(el)el.disabled=v;}
+
+// ════════ CREATE ════════
+window.createRoom = async function(){
+  myName = document.getElementById('pname').value.trim();
+  if(!myName){setErr('lerr','Escribe tu nombre');return;}
+  setDisabled('btn-create',true);setDisabled('btn-join',true);
+  setErr('lerr','Creando sala...','ok');
+  myId=genId(); isHost=true; roomId=genCode();
+  const state={
+    phase:'waiting',
+    players:[{id:myId,name:myName,pos:0,emoji:EMOJIS[0],skip:0}],
+    turn:0, log:[], winner:null, hostId:myId, ts:Date.now()
+  };
+  try{
+    await set(ref(db,`rooms/${roomId}`), state);
+    setErr('lerr','');
+    showWaiting(state);
+    subscribeRoom();
+  }catch(e){
+    setErr('lerr','Error al crear sala: '+e.message);
+    setDisabled('btn-create',false);setDisabled('btn-join',false);
+  }
+};
+
+// ════════ JOIN ════════
+window.joinRoom = async function(){
+  myName = document.getElementById('pname').value.trim();
+  const code = document.getElementById('jcode').value.trim().toUpperCase();
+  if(!myName){setErr('lerr','Escribe tu nombre');return;}
+  if(code.length!==4){setErr('lerr','El código tiene 4 letras');return;}
+  setDisabled('btn-create',true);setDisabled('btn-join',true);
+  setErr('lerr','Buscando sala...','ok');
+  roomId=code; myId=genId(); isHost=false;
+  try{
+    const snap = await get(ref(db,`rooms/${roomId}`));
+    if(!snap.exists()){setErr('lerr','Sala no encontrada.');setDisabled('btn-create',false);setDisabled('btn-join',false);return;}
+    const state = snap.val();
+    if(state.phase!=='waiting'){setErr('lerr','La partida ya comenzó.');setDisabled('btn-create',false);setDisabled('btn-join',false);return;}
+    if(state.players.length>=6){setErr('lerr','Sala llena (máx. 6).');setDisabled('btn-create',false);setDisabled('btn-join',false);return;}
+    state.players.push({id:myId,name:myName,pos:0,emoji:EMOJIS[state.players.length],skip:0});
+    await update(ref(db,`rooms/${roomId}`),{players:state.players,ts:Date.now()});
+    setErr('lerr','');
+    showWaiting(state);
+    subscribeRoom();
+  }catch(e){
+    setErr('lerr','Error: '+e.message);
+    setDisabled('btn-create',false);setDisabled('btn-join',false);
+  }
+};
+
+// ════════ SUBSCRIBE (tiempo real) ════════
+function subscribeRoom(){
+  if(unsubscribe) unsubscribe();
+  const roomRef = ref(db,`rooms/${roomId}`);
+  const handler = onValue(roomRef, snap=>{
+    if(!snap.exists()) return;
+    const state = snap.val();
+    if(state.phase==='waiting'){
+      renderWaiting(state);
+    } else if(state.phase==='playing'){
+      if(!document.getElementById('game-screen').classList.contains('active')){
+        screen('game-screen'); initBoard();
+      }
+      renderGame(state);
+    } else if(state.phase==='finished'){
+      off(roomRef, 'value', handler);
+      showWinner(state);
+    }
+  }, err=>{ document.getElementById('conn-status').textContent='● error'; });
+  unsubscribe = ()=> off(roomRef,'value',handler);
+}
+
+// ════════ WAITING UI ════════
+function showWaiting(state){
+  screen('waiting-screen');
+  document.getElementById('rc-disp').textContent=roomId;
+  renderWaiting(state);
+}
+function renderWaiting(state){
+  const pl=state.players||[];
+  document.getElementById('pc').textContent=`(${pl.length}/6)`;
+  document.getElementById('wp-list').innerHTML=pl.map((p,i)=>`
+    <div class="p-item">
+      <div class="p-av" style="background:${avatarBg(p.emoji)}">${p.emoji}</div>
+      <span style="flex:1;font-size:13px;font-weight:600">${esc(p.name)}${p.id===myId?' <span style="color:#6b7280;font-weight:400">(tú)</span>':''}</span>
+      ${i===0?'<span class="host-badge">Host</span>':''}
+    </div>`).join('');
+  const bs=document.getElementById('btn-start');
+  const wm=document.getElementById('wmsg');
+  if(isHost){
+    bs.style.display=pl.length>=2?'block':'none';
+    wm.textContent=pl.length<2?'Necesitas al menos 2 jugadores.':'¡Puedes iniciar la partida!';
+  } else {
+    bs.style.display='none';
+    wm.textContent='Esperando que el anfitrión inicie...';
+  }
+  document.getElementById('status').textContent='✅ Sala: '+roomId+' · Conectado';
+}
+
+// ════════ START ════════
+window.startGame = async function(){
+  await update(ref(db,`rooms/${roomId}`),{
+    phase:'playing', turn:0, log:['🦆 ¡Ha comenzado El Pato!'], ts:Date.now()
+  });
+};
+
+// ════════ BOARD ════════
+function initBoard(){
+  if(boardReady)return; boardReady=true;
+  canvas=document.getElementById('boardCanvas');
+  const W=Math.min(document.getElementById('board-side').offsetWidth||500, 560);
+  canvas.width=W; canvas.height=W;
+  ctx=canvas.getContext('2d');
+  computeCells(W);
+}
+function computeCells(W){
+  cells=[];
+  const cols=10,rows=7,pad=3;
+  const cw=(W-pad*(cols+1))/cols;
+  const ch=(W-pad*(rows+1))/rows;
+  for(let row=rows-1;row>=0;row--){
+    const ltr=(rows-1-row)%2===0;
+    for(let col=0;col<cols;col++){
+      const c=ltr?col:cols-1-col;
+      cells.push({x:pad+c*(cw+pad)+cw/2, y:pad+row*(ch+pad)+ch/2, w:cw, h:ch});
+    }
+  }
+  cells=cells.slice(0,END);
+}
+function rr(c,x,y,w,h,r){
+  c.beginPath();
+  c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);
+  c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);
+  c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);
+  c.closePath();
+}
+function drawBoard(state){
+  if(!canvas||!ctx)return;
+  const W=canvas.width;
+  ctx.fillStyle='#080f16';
+  rr(ctx,0,0,W,W,12);ctx.fill();
+  for(let i=0;i<END;i++) drawCell(i+1);
+  // Tokens
+  const byPos={};
+  (state.players||[]).forEach(p=>{
+    if(p.pos>0&&p.pos<=END){
+      if(!byPos[p.pos])byPos[p.pos]=[];
+      byPos[p.pos].push(p);
+    }
+  });
+  Object.entries(byPos).forEach(([pos,pls])=>{
+    const cell=cells[+pos-1]; if(!cell)return;
+    pls.forEach((pl,idx)=>{
+      const ang=(idx/pls.length)*Math.PI*2;
+      const rad=pls.length>1?9:0;
+      ctx.font=`${Math.min(cell.w,cell.h)*0.4}px serif`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(pl.emoji, cell.x+Math.cos(ang)*rad, cell.y+Math.sin(ang)*rad+1);
+    });
+  });
+}
+function drawCell(num){
+  const cell=cells[num-1]; if(!cell)return;
+  let bg='#1c2a3a',stroke='#2d3f52',icon='';
+  if(GEESE.includes(num)){bg='#0d3a18';stroke='#22c55e';icon='🦆';}
+  else if(num===BRIDGE){bg='#0e2540';stroke='#3b82f6';icon='🌉';}
+  else if(num===INN)   {bg='#3a1f08';stroke='#f97316';icon='🍺';}
+  else if(num===WELL)  {bg='#1e0d40';stroke='#a855f7';icon='🪣';}
+  else if(num===MAZE)  {bg='#2a0c0c';stroke='#ef4444';icon='🌀';}
+  else if(num===PRISON){bg='#280606';stroke='#dc2626';icon='⛓';}
+  else if(num===DEATH) {bg='#180000';stroke='#991b1b';icon='💀';}
+  else if(num===END)   {bg='#2a1c00';stroke='#FBBF24';icon='🏆';}
+  const{x,y,w,h}=cell;
+  ctx.fillStyle=bg; ctx.strokeStyle=stroke; ctx.lineWidth=1.5;
+  rr(ctx,x-w/2,y-h/2,w,h,4); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#374151';
+  ctx.font=`${Math.max(7,w*0.17)}px sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText(num,x,y-h/2+2);
+  if(icon){
+    ctx.font=`${Math.min(w,h)*0.38}px serif`;
+    ctx.textBaseline='middle';
+    ctx.fillText(icon,x,y+h*0.1);
+  }
+}
+
+// ════════ GAME RENDER ════════
+function renderGame(state){
+  drawBoard(state);
+  const cur=state.players[state.turn%state.players.length];
+  const myTurn=cur.id===myId;
+  const me=state.players.find(p=>p.id===myId);
+  document.getElementById('turn-ind').textContent=`Turno: ${esc(cur.name)}`;
+  document.getElementById('pturn-list').innerHTML=state.players.map(p=>`
+    <div class="p-row ${p.id===cur.id?'active':''}">
+      <span style="font-size:18px">${p.emoji}</span>
+      <div class="p-info">
+        <strong>${esc(p.name)}${p.id===myId?' (tú)':''}</strong>
+        <span>${p.skip>0?`Espera ${p.skip} turno(s)`:'Listo'}</span>
+      </div>
+      <span class="p-pos">${p.pos===0?'🏁':'#'+p.pos}</span>
+    </div>`).join('');
+  const br=document.getElementById('btn-roll');
+  br.disabled=!myTurn||rolling;
+  const mb=document.getElementById('msg-box');
+  if(!myTurn){
+    mb.textContent=`Turno de ${esc(cur.name)}...`;
+    skipScheduled=false;
+  } else if(me&&me.skip>0){
+    mb.textContent=`Pierdes ${me.skip} turno(s). Pasando automáticamente...`;
+    if(!skipScheduled){skipScheduled=true;setTimeout(doSkip,2000);}
+  } else {
+    mb.textContent='¡Tu turno! Tira el dado 🎲';
+  }
+  document.getElementById('log-area').innerHTML=
+    (state.log||[]).slice(-12).reverse().map(l=>`<div>${l}</div>`).join('');
+}
+
+// ════════ ROLL ════════
+window.rollDice = async function(){
+  if(rolling)return;
+  // Verificar turno en BD antes de proceder
+  const snap=await get(ref(db,`rooms/${roomId}`));
+  if(!snap.exists())return;
+  const check=snap.val();
+  const curCheck=check.players[check.turn%check.players.length];
+  if(curCheck.id!==myId){
+    document.getElementById('msg-box').textContent='No es tu turno todavía.';return;
+  }
+  rolling=true;
+  document.getElementById('btn-roll').disabled=true;
+  // Animación dado
+  let f=14;
+  const a=setInterval(()=>{
+    document.getElementById('dice-display').textContent=DFACES[Math.floor(Math.random()*6)];
+    if(--f<=0)clearInterval(a);
+  },65);
+  await sleep(950);
+  const roll=Math.floor(Math.random()*6)+1;
+  document.getElementById('dice-display').textContent=DFACES[roll-1];
+  // Leer estado fresco y aplicar movimiento
+  const snap2=await get(ref(db,`rooms/${roomId}`));
+  if(!snap2.exists()){rolling=false;return;}
+  const state=snap2.val();
+  const cur=state.players[state.turn%state.players.length];
+  if(cur.id!==myId){rolling=false;return;}
+  applyMove(state,roll);
+  state.ts=Date.now();
+  await set(ref(db,`rooms/${roomId}`),state);
+  rolling=false;
+};
+
+async function doSkip(){
+  skipScheduled=false;
+  if(rolling)return; rolling=true;
+  const snap=await get(ref(db,`rooms/${roomId}`));
+  if(!snap.exists()){rolling=false;return;}
+  const state=snap.val();
+  const cur=state.players[state.turn%state.players.length];
+  if(cur.id!==myId){rolling=false;return;}
+  const idx=state.players.findIndex(p=>p.id===myId);
+  if(state.players[idx].skip>0){
+    state.players[idx].skip--;
+    state.log.push(`⏭ ${esc(state.players[idx].name)} pierde un turno (${state.players[idx].skip} restante(s)).`);
+  }
+  state.turn=(state.turn+1)%state.players.length;
+  state.ts=Date.now();
+  await set(ref(db,`rooms/${roomId}`),state);
+  rolling=false;
+}
+
+function applyMove(state,roll){
+  const idx=state.players.findIndex(p=>p.id===myId);
+  const pl=state.players[idx];
+  let pos=pl.pos+roll;
+  let msg=`${esc(pl.name)} saca ${roll}`;
+  if(pos>END){pos=END-(pos-END);msg+=` → rebota a #${pos}`;}
+  let extra='';
+  if(GEESE.includes(pos)){
+    const old=pos; pos=Math.min(pos+roll,END);
+    if(pos>END)pos=END-(pos-END);
+    extra=` 🦆 ¡PATO en #${old}! Avanza a #${pos}.`;
+  } else if(pos===BRIDGE){pos=12;extra=' 🌉 Puente → #12.';}
+  else if(pos===INN){pl.skip=1;extra=' 🍺 Posada: 1 turno perdido.';}
+  else if(pos===WELL){pl.skip=2;extra=' 🪣 Pozo: 2 turnos perdidos.';}
+  else if(pos===MAZE){pos=30;extra=' 🌀 Laberinto → #30.';}
+  else if(pos===PRISON){pl.skip=2;extra=' ⛓ Cárcel: 2 turnos perdidos.';}
+  else if(pos===DEATH){pos=0;extra=' 💀 Muerte → inicio.';}
+  else {extra=` → #${pos}`;}
+  pl.pos=Math.max(0,pos);
+  state.log.push(msg+extra);
+  if(pl.pos>=END){
+    state.phase='finished'; state.winner=pl.name;
+    state.log.push(`🏆 ¡${esc(pl.name)} ha ganado El Pato!`);
+  } else {
+    state.turn=(state.turn+1)%state.players.length;
+  }
+}
+
+// ════════ WINNER ════════
+function showWinner(state){
+  screen('winner-screen');
+  document.getElementById('wname').textContent='🦆 '+state.winner;
+  // Limpiar sala tras 30s
+  setTimeout(()=>remove(ref(db,`rooms/${roomId}`)),30000);
+}
+
+</script>
+</body>
+</html>
